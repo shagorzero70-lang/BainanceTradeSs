@@ -55,6 +55,6 @@ class SignalEngineTest {
 
     @Test fun overboughtRsiIsBearishCaution() {
         val s = SignalEngine.evaluate(bull.copy(rsi = 75.0), 1L, false)
-        assertTrue(s.contributions.first { it.indicator == "RSI" }.points == -1)
+        assertTrue(s.contributions.first { it.indicator == "RSI" }.points == 0)
     }
 }

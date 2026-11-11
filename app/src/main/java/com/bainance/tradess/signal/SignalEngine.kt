@@ -69,10 +69,10 @@ object SignalEngine {
         }
         c += Contribution("MACD", m, reasons.joinToString("; ").ifEmpty { "MACD flat" })
 
-        // RSI
+        // RSI extremes are caution zones, not automatic reversal signals.
         c += when {
-            s.rsi > 70 -> Contribution("RSI", -1, "RSI %.1f overbought; caution".format(s.rsi))
-            s.rsi < 30 -> Contribution("RSI", 1, "RSI %.1f oversold; bounce possible".format(s.rsi))
+            s.rsi > 70 -> Contribution("RSI", 0, "RSI %.1f overbought; caution".format(s.rsi))
+            s.rsi < 30 -> Contribution("RSI", 0, "RSI %.1f oversold; no automatic bullish signal".format(s.rsi))
             s.rsi >= 55 -> Contribution("RSI", 1, "RSI %.1f bullish momentum".format(s.rsi))
             s.rsi <= 45 -> Contribution("RSI", -1, "RSI %.1f bearish momentum".format(s.rsi))
             else -> Contribution("RSI", 0, "RSI %.1f neutral".format(s.rsi))
@@ -86,10 +86,10 @@ object SignalEngine {
             else -> Contribution("Stoch", 0, "Stoch %K = %D")
         }
 
-        // Bollinger
+        // Bollinger outer-band breaks are caution, not reversal predictions.
         c += when {
-            s.close > s.bbUpper -> Contribution("BB", -1, "Close above upper band; stretched")
-            s.close < s.bbLower -> Contribution("BB", 1, "Close below lower band; stretched")
+            s.close > s.bbUpper -> Contribution("BB", 0, "Above upper band; caution")
+            s.close < s.bbLower -> Contribution("BB", 0, "Below lower band; caution")
             s.close > s.bbMiddle -> Contribution("BB", 1, "Close above middle band")
             s.close < s.bbMiddle -> Contribution("BB", -1, "Close below middle band")
             else -> Contribution("BB", 0, "Close on middle band")
@@ -99,10 +99,13 @@ object SignalEngine {
         val bull = c.filter { it.points > 0 }.sumOf { it.points }
         val bear = -c.filter { it.points < 0 }.sumOf { it.points }
         val conflict = bull >= CONFLICT_MIN && bear >= CONFLICT_MIN
+        // Trend confirmation: EMA direction and MACD histogram must agree.
+        val bullishTrend = s.ema9 > s.ema21 && s.macdHist > 0
+        val bearishTrend = s.ema9 < s.ema21 && s.macdHist < 0
         val direction = when {
             conflict -> Direction.NEUTRAL
-            score >= THRESHOLD -> Direction.UP
-            score <= -THRESHOLD -> Direction.DOWN
+            score >= THRESHOLD && bullishTrend -> Direction.UP
+            score <= -THRESHOLD && bearishTrend -> Direction.DOWN
             else -> Direction.NEUTRAL
         }
         val bias = when (direction) {
