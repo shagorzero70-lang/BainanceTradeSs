@@ -187,13 +187,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     StreamEvent.Connecting -> _state.update { it.copy(conn = ConnStatus.CONNECTING) }
                     StreamEvent.Connected -> _state.update { it.copy(conn = ConnStatus.LIVE) }
                     is StreamEvent.Reconnecting -> _state.update { it.copy(conn = ConnStatus.RECONNECTING) }
-                    is StreamEvent.Kline -> applyKline(tf, ev.value.candle)
+                    is StreamEvent.Kline -> applyKline(sym, tf, ev.value.candle)
                 }
             }
         }
     }
 
-    private suspend fun applyKline(tf: Timeframe, c: Candle) {
+    private suspend fun applyKline(sym: String, tf: Timeframe, c: Candle) {
         val cur = _state.value.candles[tf] ?: return          // wait for REST history first
         val merged = when {
             cur.isEmpty() -> return
