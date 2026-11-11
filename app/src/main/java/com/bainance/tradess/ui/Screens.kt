@@ -46,7 +46,20 @@ import com.bainance.tradess.signal.TfAnalysis
 @Composable
 fun AppRoot(vm: MainViewModel) {
     val s by vm.state.collectAsStateWithLifecycle()
-    var themeMode by remember { mutableStateOf(AppThemeMode.DARK) }
+    val appContext = androidx.compose.ui.platform.LocalContext.current
+    val themePrefs = remember {
+        appContext.getSharedPreferences("bainance_prefs", android.content.Context.MODE_PRIVATE)
+    }
+    var themeMode by remember {
+        mutableStateOf(
+            runCatching {
+                AppThemeMode.valueOf(themePrefs.getString("theme_mode", "DARK") ?: "DARK")
+            }.getOrDefault(AppThemeMode.DARK)
+        )
+    }
+    androidx.compose.runtime.LaunchedEffect(themeMode) {
+        themePrefs.edit().putString("theme_mode", themeMode.name).apply()
+    }
 
     BackHandler(enabled = s.screen != Screen.LIST) { vm.back() }
 
@@ -125,6 +138,19 @@ fun ListScreen(s: UiState, vm: MainViewModel, themeMode: AppThemeMode, onThemeCh
                         Column(horizontalAlignment = Alignment.End) {
                             Text(fmtPrice(r.price))
                             Text("%+.2f%%".format(r.changePct), color = if (r.changePct >= 0) Green else Red, fontSize = 12.sp)
+                        }
+                    }
+                }
+                item {
+                    Column(
+                        Modifier.fillMaxWidth().padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("Showing ${rows.size} of ${s.filteredRowCount} coins", color = Muted, fontSize = 12.sp)
+                        if (s.hasMoreRows) {
+                            Button(onClick = vm::loadMore) {
+                                Text("Load More")
+                            }
                         }
                     }
                 }

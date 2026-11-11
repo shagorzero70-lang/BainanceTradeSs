@@ -82,10 +82,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun openInfo() = _state.update { it.copy(screen = Screen.INFO) }
     fun openExtras() = _state.update { it.copy(screen = Screen.EXTRAS) }
-    fun setQuery(q: String) = _state.update { it.copy(query = q) }
-    fun setQuote(q: String) = _state.update { it.copy(quote = q) }
-    fun setSort(s: SortMode) = _state.update { it.copy(sort = s) }
-    fun toggleFavoritesOnly() = _state.update { it.copy(favoritesOnly = !it.favoritesOnly) }
+    fun setQuery(q: String) = _state.update { it.copy(query = q, visibleLimit = 100) }
+    fun setQuote(q: String) = _state.update { it.copy(quote = q, visibleLimit = 100) }
+    fun setSort(s: SortMode) = _state.update { it.copy(sort = s, visibleLimit = 100) }
+    fun toggleFavoritesOnly() = _state.update { it.copy(favoritesOnly = !it.favoritesOnly, visibleLimit = 100) }
+    fun loadMore() = _state.update { it.copy(visibleLimit = (it.visibleLimit + 100).coerceAtMost(it.filteredRowCount)) }
     fun toggleFavorite(symbol: String) { viewModelScope.launch { favStore.toggle(symbol) } }
 
     fun select(symbol: String) {

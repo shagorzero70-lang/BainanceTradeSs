@@ -33,6 +33,7 @@ data class UiState(
     val sort: SortMode = SortMode.VOLUME,
     val favoritesOnly: Boolean = false,
     val favorites: Set<String> = emptySet(),
+    val visibleLimit: Int = 100,
     // dashboard
     val selected: String? = null,
     val timeframe: Timeframe = Timeframe.M5,
@@ -48,14 +49,13 @@ data class UiState(
     val selectedRow: MarketRow? get() = rows.firstOrNull { it.symbol == selected }
 
     val quoteOptions: List<String>
-        get() = listOf("USDT", "USDC", "FDUSD", "BTC", "ETH", "BNB").filter { q -> rows.any { it.quote == q } }
-            .ifEmpty { listOf("USDT") }
+        get() = listOf("ALL") + rows.map { it.quote }.distinct().sorted()
 
-    val visibleRows: List<MarketRow>
+    private val filteredSortedRows: List<MarketRow>
         get() {
             val q = query.trim().uppercase()
             val filtered = rows.filter {
-                it.quote == quote &&
+                (quote == "ALL" || it.quote == quote) &&
                     (q.isEmpty() || it.symbol.contains(q) || it.base.contains(q)) &&
                     (!favoritesOnly || it.symbol in favorites)
             }
@@ -66,4 +66,8 @@ data class UiState(
                 SortMode.NAME -> filtered.sortedBy { it.symbol }
             }
         }
+
+    val filteredRowCount: Int get() = filteredSortedRows.size
+    val hasMoreRows: Boolean get() = filteredSortedRows.size > visibleLimit
+    val visibleRows: List<MarketRow> get() = filteredSortedRows.take(visibleLimit)
 }

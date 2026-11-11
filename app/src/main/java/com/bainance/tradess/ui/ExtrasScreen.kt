@@ -76,10 +76,25 @@ fun ExtrasScreen(vm: MainViewModel) {
     val context = LocalContext.current
     val activity = context.findActivity()
     var dhakaNow by remember { mutableStateOf(ZonedDateTime.now(ZoneId.of("Asia/Dhaka"))) }
+    val brightnessPrefs = remember {
+        context.getSharedPreferences("bainance_prefs", android.content.Context.MODE_PRIVATE)
+    }
     var brightness by remember {
         mutableFloatStateOf(
-            activity?.window?.attributes?.screenBrightness?.takeIf { it in 0.1f..1.0f } ?: 0.5f
+            brightnessPrefs.getFloat("screen_brightness", 0.5f).coerceIn(0.1f, 1.0f)
         )
+    }
+
+    LaunchedEffect(brightness) {
+        brightnessPrefs.edit().putFloat("screen_brightness", brightness).apply()
+    }
+
+    LaunchedEffect(brightness) {
+        activity?.window?.let { window ->
+            val attrs = window.attributes
+            attrs.screenBrightness = brightness
+            window.attributes = attrs
+        }
     }
     var articles by remember { mutableStateOf<List<NewsArticle>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
@@ -149,7 +164,7 @@ fun ExtrasScreen(vm: MainViewModel) {
                 },
                 valueRange = 0.1f..1.0f
             )
-            Text("এই সেটিং শুধু অ্যাপ খোলা থাকা অবস্থায় কাজ করে।", color = Muted, fontSize = 11.sp)
+            Text("এই উজ্জ্বলতা সেটিং সংরক্ষিত থাকবে।", color = Muted, fontSize = 11.sp)
         }
 
         Column(Modifier.fillMaxWidth().background(Card, RoundedCornerShape(12.dp)).padding(12.dp)) {
