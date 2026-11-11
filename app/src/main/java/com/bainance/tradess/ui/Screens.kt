@@ -28,6 +28,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -43,20 +46,25 @@ import com.bainance.tradess.signal.TfAnalysis
 @Composable
 fun AppRoot(vm: MainViewModel) {
     val s by vm.state.collectAsStateWithLifecycle()
+    var themeMode by remember { mutableStateOf(AppThemeMode.DARK) }
+
     BackHandler(enabled = s.screen != Screen.LIST) { vm.back() }
-    Box(Modifier.fillMaxSize().background(Bg).navigationBarsPadding()) {
-        when (s.screen) {
-            Screen.LIST -> ListScreen(s, vm)
-            Screen.DASHBOARD -> DashboardScreen(s, vm)
-            Screen.BACKTEST -> BacktestScreen(s, vm)
-            Screen.INFO -> InfoScreen(vm)
+
+    AppTheme(mode = themeMode) {
+        Box(Modifier.fillMaxSize().background(Bg).navigationBarsPadding()) {
+            when (s.screen) {
+                Screen.LIST -> ListScreen(s, vm, themeMode) { themeMode = it }
+                Screen.DASHBOARD -> DashboardScreen(s, vm)
+                Screen.BACKTEST -> BacktestScreen(s, vm)
+                Screen.INFO -> InfoScreen(vm)
+            }
         }
     }
 }
 
 // ------------------------------------------------------------------ list
 @Composable
-fun ListScreen(s: UiState, vm: MainViewModel) {
+fun ListScreen(s: UiState, vm: MainViewModel, themeMode: AppThemeMode, onThemeChange: (AppThemeMode) -> Unit) {
     val rows = s.visibleRows
     Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -64,6 +72,18 @@ fun ListScreen(s: UiState, vm: MainViewModel) {
             TextButton(onClick = vm::openInfo) { Text("About / Info") }
         }
         Disclaimer()
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            AppThemeMode.values().forEach { mode ->
+                FilterChip(
+                    selected = themeMode == mode,
+                    onClick = { onThemeChange(mode) },
+                    label = { Text(mode.label) }
+                )
+            }
+        }
         OutlinedTextField(
             value = s.query, onValueChange = vm::setQuery, singleLine = true,
             label = { Text("Search coin (খুঁজুন) e.g. BTC") }, modifier = Modifier.fillMaxWidth()
