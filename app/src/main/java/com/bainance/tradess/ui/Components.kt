@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.bainance.tradess.signal.Direction
 import com.bainance.tradess.signal.Signal
 import com.bainance.tradess.signal.SignalEngine
+import kotlin.math.roundToInt
 
 @Composable
 fun Disclaimer() {
@@ -71,6 +72,12 @@ fun SignalCard(symbol: String, tf: String, title: String, signal: Signal?, updat
             Text(
                 "Score ${"%+d".format(signal.score)} / ±${SignalEngine.MAX_SCORE} (threshold ±${SignalEngine.THRESHOLD}) · ${signal.strength}",
                 fontSize = 13.sp
+            )
+            val upIndex = (((signal.score + SignalEngine.MAX_SCORE).toDouble() /
+                (SignalEngine.MAX_SCORE * 2)) * 100.0).roundToInt().coerceIn(0, 100)
+            Text(
+                "UP score index: $upIndex%  ·  DOWN score index: ${100 - upIndex}% (not probability)",
+                color = Muted, fontSize = 12.sp
             )
             signal.contributions.forEach {
                 val c = if (it.points > 0) Green else if (it.points < 0) Red else Muted

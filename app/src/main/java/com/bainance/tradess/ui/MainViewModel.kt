@@ -1,6 +1,14 @@
 package com.bainance.tradess.ui
 
+import android.Manifest
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.bainance.tradess.backtest.Backtester
@@ -14,6 +22,7 @@ import com.bainance.tradess.data.StreamEvent
 import com.bainance.tradess.data.SymbolInfo
 import com.bainance.tradess.data.Timeframe
 import com.bainance.tradess.signal.Analyzer
+import com.bainance.tradess.signal.Direction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -66,11 +75,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 Screen.BACKTEST -> it.copy(screen = Screen.DASHBOARD)
                 Screen.DASHBOARD -> { detailJob?.cancel(); streamJob?.cancel(); it.copy(screen = Screen.LIST, conn = ConnStatus.IDLE) }
                 Screen.INFO -> it.copy(screen = Screen.LIST)
+                Screen.EXTRAS -> it.copy(screen = Screen.LIST)
                 Screen.LIST -> it
             }
         }
     }
     fun openInfo() = _state.update { it.copy(screen = Screen.INFO) }
+    fun openExtras() = _state.update { it.copy(screen = Screen.EXTRAS) }
     fun setQuery(q: String) = _state.update { it.copy(query = q) }
     fun setQuote(q: String) = _state.update { it.copy(quote = q) }
     fun setSort(s: SortMode) = _state.update { it.copy(sort = s) }
@@ -192,6 +203,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         val now = System.currentTimeMillis()
         val a = withContext(Dispatchers.Default) { Analyzer.analyze(tf, merged, now) }
+        val oldSignal = _state.value.analysis[tf]?.closed
+        val newSignal = a.closed
+        if (oldSignal != null && newSignal != null && newSignal.enoughData &&
+            newSignal.direction != Direction.NEUTRAL && newSignal.direction != oldSignal.direction
+        ) postSignalNotification(sym, tf.label, newSignal.direction.name)
         _state.update {
             if (it.timeframe != tf) it
             else it.copy(candles = it.candles + (tf to merged), analysis = it.analysis + (tf to a), lastUpdated = now, detailError = null)
@@ -220,6 +236,30 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 _state.update { it.copy(backtest = BacktestUi(error = describe(e))) }
             }
         }
+    }
+
+    private fun postSignalNotification(symbol: String, timeframe: String, direction: String) {
+        val app = getApplication<Application>()
+        if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(
+                app, Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) return
+        if (!NotificationManagerCompat.from(app).areNotificationsEnabled()) return
+        val channelId = "bainance_signal"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = app.getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(
+                NotificationChannel(channelId, "Signal changes", NotificationManager.IMPORTANCE_DEFAULT)
+            )
+        }
+        val notification = NotificationCompat.Builder(app, channelId)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("$symbol · $timeframe signal changed")
+            .setContentText("Closed-candle signal: $direction. Check the app before making any decision.")
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        NotificationManagerCompat.from(app).notify((symbol + timeframe).hashCode(), notification)
     }
 
     private fun describe(e: BinanceException): String = when (e) {

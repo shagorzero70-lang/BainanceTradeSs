@@ -6,7 +6,7 @@ import com.bainance.tradess.data.MarketRow
 import com.bainance.tradess.data.Timeframe
 import com.bainance.tradess.signal.TfAnalysis
 
-enum class Screen { LIST, DASHBOARD, BACKTEST, INFO }
+enum class Screen { LIST, DASHBOARD, BACKTEST, INFO, EXTRAS }
 enum class SortMode(val label: String) {
     VOLUME("Volume"), CHANGE_DESC("24h ▲"), CHANGE_ASC("24h ▼"), NAME("A–Z")
 }

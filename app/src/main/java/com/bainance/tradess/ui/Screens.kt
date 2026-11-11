@@ -57,6 +57,7 @@ fun AppRoot(vm: MainViewModel) {
                 Screen.DASHBOARD -> DashboardScreen(s, vm)
                 Screen.BACKTEST -> BacktestScreen(s, vm)
                 Screen.INFO -> InfoScreen(vm)
+                Screen.EXTRAS -> ExtrasScreen(vm)
             }
         }
     }
@@ -69,7 +70,10 @@ fun ListScreen(s: UiState, vm: MainViewModel, themeMode: AppThemeMode, onThemeCh
     Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Bainance Trade Ss", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Amber)
-            TextButton(onClick = vm::openInfo) { Text("About / Info") }
+            Row {
+                TextButton(onClick = vm::openExtras) { Text("News / Tools") }
+                TextButton(onClick = vm::openInfo) { Text("About") }
+            }
         }
         Disclaimer()
         Row(
