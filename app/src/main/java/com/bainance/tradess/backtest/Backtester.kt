@@ -61,15 +61,32 @@ object Backtester {
         var inPos = false
         var entryPrice = 0.0
         var entryTime = 0L
+        var equity = 1.0
+        var peak = 1.0
+        var maxDd = 0.0
+
+        fun updateDrawdown(high: Double, low: Double) {
+            val costFactor = (1 - fee) * (1 - fee)
+            val highEquity = equity * (high * (1 - slip) / entryPrice) * costFactor
+            val lowEquity = equity * (low * (1 - slip) / entryPrice) * costFactor
+            if (highEquity > peak) peak = highEquity
+            if (peak > 0.0) {
+                maxDd = maxOf(maxDd, (peak - lowEquity) / peak)
+            }
+        }
 
         fun close(exitRaw: Double, time: Long) {
             val exit = exitRaw * (1 - slip)
             val ret = (exit / entryPrice) * (1 - fee) * (1 - fee) - 1.0
             trades += Trade(entryTime, time, entryPrice, exit, ret * 100.0)
+            equity *= 1 + ret
+            if (equity > peak) peak = equity
+            if (peak > 0.0) maxDd = maxOf(maxDd, (peak - equity) / peak)
             inPos = false
         }
 
         for (i in cfg.warmup until n - 1) {
+            if (inPos) updateDrawdown(candles[i].high, candles[i].low)
             val long = wantsLong(ind, i)
             val next = candles[i + 1]
             if (!inPos && long) {
@@ -80,20 +97,19 @@ object Backtester {
                 close(next.open, next.openTime)
             }
         }
-        if (inPos) close(candles[n - 1].close, candles[n - 1].closeTime)
+        if (inPos) {
+            updateDrawdown(candles[n - 1].high, candles[n - 1].low)
+            close(candles[n - 1].close, candles[n - 1].closeTime)
+        }
 
-        val buyHold = (candles[n - 1].close / candles[cfg.warmup + 1].open - 1.0) * 100.0
+        val buyHoldEntry = candles[cfg.warmup + 1].open * (1 + slip)
+        val buyHoldExit = candles[n - 1].close * (1 - slip)
+        val buyHold = (
+            buyHoldExit / buyHoldEntry * (1 - fee) * (1 - fee) - 1.0
+        ) * 100.0
         if (trades.isEmpty()) {
             return BacktestResult(trades, 0.0, 0.0, 0.0, 0.0, buyHold, n, cfg,
                 "No trades were generated in this period.")
-        }
-        var equity = 1.0
-        var peak = 1.0
-        var maxDd = 0.0
-        for (t in trades) {
-            equity *= 1 + t.returnPct / 100.0
-            if (equity > peak) peak = equity
-            maxDd = maxOf(maxDd, (peak - equity) / peak)
         }
         val wins = trades.count { it.returnPct > 0 }
         return BacktestResult(
